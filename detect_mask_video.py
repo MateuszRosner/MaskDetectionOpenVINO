@@ -30,9 +30,6 @@ except FileNotFoundError:
         json.dump(parameters, conf_file)
         print("Default parameters loaded")
 
-# parse arguments
-
-
 def parse_args():
 	ap = argparse.ArgumentParser()
 	ap.add_argument("-f", "--face", type=str, default="face_detector",
@@ -45,7 +42,6 @@ def parse_args():
 			help="detection sensitivity")
 	return vars(ap.parse_args())
 	
-
 args = parse_args()
 
 # create reports dir with current date and statistics file
