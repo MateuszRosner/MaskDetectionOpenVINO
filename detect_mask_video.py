@@ -10,9 +10,9 @@ import Sensors_driver
 import os
 import random
 import argparse
+import pygame
 
 from datetime import datetime
-from playsound import playsound
 
 from detector import Detector, FaceDetection, MaskDetection
 
@@ -29,6 +29,9 @@ except FileNotFoundError:
     with open(config_file_name, 'w') as conf_file:
         json.dump(parameters, conf_file)
         print("Default parameters loaded")
+
+pygame.mixer.init()
+pygame.mixer.music.load("alarm.wav")
 
 def parse_args():
 	ap = argparse.ArgumentParser()
@@ -99,7 +102,7 @@ while True:
 	if new_length == last_length:
 		if faults > 0 and last_state == True:
 			last_state = False
-			# playsound("alarm.wav", block=True)
+			pygame.mixer.music.play()
 			date_time_parsed = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 			img = os.path.join(path, f"file_{str(date_time_parsed)}.jpg")
 			cv2.imwrite(img, frame)
@@ -110,7 +113,7 @@ while True:
 	else:
 		last_state = True
 		if faults > 0:
-			#playsound("alarm.wav", block=True)
+			pygame.mixer.music.play()
 			date_time_parsed = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 			img = os.path.join(path, f"file_{str(date_time_parsed)}.jpg")
 			cv2.imwrite(img, frame)
