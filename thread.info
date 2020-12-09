@@ -1,3 +1,6 @@
-[00] threadId=47696 threadName=DispatcherT1
-[01] threadId=47695 threadName=DispatcherT0
-[02] threadId=47697 threadName=DispatcherT2
+[00] threadId=13123 threadName=DispatcherT0
+[304] threadId=13128 threadName=ResDp86T0
+[01] threadId=13124 threadName=DispatcherT1
+[02] threadId=13125 threadName=DispatcherT2
+[305] threadId=13135 threadName=Wt4.1S100IT0
+[306] threadId=13136 threadName=Wt4.1S100GT0

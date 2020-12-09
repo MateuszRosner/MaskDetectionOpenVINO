@@ -2,7 +2,6 @@
 # python detect_mask_video.py
 
 import json
-
 import imutils
 import cv2
 import Arduino_driver
@@ -11,10 +10,10 @@ import os
 import random
 import argparse
 import pygame
+import threading
 
 from datetime import datetime
-
-from detector import Detector, FaceDetection, MaskDetection
+from detector import Detector, FaceDetection, MaskDetection, AgeGenderDetector
 
 config_file_name = "config.json"
 
@@ -39,9 +38,9 @@ def parse_args():
             help="path to face detector model directory")
 	ap.add_argument("-m", "--model", type=str, default="mask_detector.model",
             help="path to trained face mask detector model")
-	ap.add_argument("-c", "--confidence", type=float, default=0.5,
+	ap.add_argument("-c", "--confidence", type=float, default=0.6,
             help="minimum probability to filter weak detections")
-	ap.add_argument("-s", "--sens", type=float, default=0.8, 
+	ap.add_argument("-s", "--sens", type=float, default=0.85, 
 			help="detection sensitivity")
 	return vars(ap.parse_args())
 	
@@ -65,8 +64,9 @@ Sensors = Sensors_driver.Sensors_driver(parameters['SensorsPort'])
 det = Detector()
 det.start_video_stream(parameters['Cam_src'])
 
-face_det = FaceDetection()
-mask_det = MaskDetection()
+face_det = FaceDetection(threshold=args['confidence'], scale=1.05)
+mask_det = MaskDetection(threshold=args['sens'])
+age_gen_det = AgeGenderDetector()
 
 last_state = True
 last_length = 0
@@ -75,30 +75,39 @@ mask_detected_prob = -1
 mask_detection_sens = args['sens']
 
 while True:
+	inference_time = 0
 	faults = 0
 	new_length = 0
 	frame = det.process_video()
-	fd_results = face_det.predict(frame, show_bbox=True, mask_detected=mask_detected_prob)
+	fd_results = face_det.predict(frame)
 	face_bboxes = fd_results["process_output"]["bbox_coord"]
-
+	inference_time += fd_results["predict_end_time"]
 	if face_bboxes:
 		for face_bbox in face_bboxes:
             # extract the face ROI
 			(x, y, w, h) = face_bbox
 			face = frame[y:h, x:w]
-			(face_height, face_width) = face.shape[:2]
-			md_results = mask_det.predict(face, show_bbox=True, frame=frame)
-			mask_detected_prob = -md_results["process_output"]["flattened_predictions"]
+			md_results = mask_det.predict(face, show_bbox=False, frame=frame, gray_enabled=True)
+			mask_detected_prob = md_results["process_output"]["mask_no_mask"]
 			if mask_detected_prob > mask_detection_sens:
 				faults += 1
-		
-		print(mask_detected_prob)
+
+			age_gender = age_gen_det.predict(face)
+
+			face_det.draw_output(frame, xmin=x, ymin=y, xmax=w, ymax=h, mask_detected=mask_detected_prob, threshold=mask_detection_sens, 
+								center_point=False, ethnics = age_gender["process_output"])
+			
+			inference_time +=  md_results["predict_end_time"]
+			inference_time += age_gender["predict_end_time"]
+
+	fps = 1000. / inference_time
+	print("inference time = {:0.2f}, fps = {:0.2f}, confidence = {}, faults = {}" .format(inference_time, fps, mask_detected_prob, faults))
 	
 	new_length = len(face_bboxes)
 
-	frame = imutils.resize(image=frame, height=400)
+	frame = imutils.resize(image=frame, width=600)
 	cv2.imshow('frame', frame)
-    # create detections list
+
 	if new_length == last_length:
 		if faults > 0 and last_state == True:
 			last_state = False
@@ -120,6 +129,8 @@ while True:
 			LEDs.send_state(b'2')
 		elif faults==0 and new_length > 0:
 			LEDs.send_state(b'1')
+		else:
+			LEDs.send_state(b'0')
 
 	# simple ppl counting
 	if new_length > last_length:
